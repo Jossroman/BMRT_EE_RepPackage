@@ -1,0 +1,191 @@
+function residual = static_resid(T, y, x, params, T_flag)
+% function residual = static_resid(T, y, x, params, T_flag)
+%
+% File created by Dynare Preprocessor from .mod file
+%
+% Inputs:
+%   T         [#temp variables by 1]  double   vector of temporary terms to be filled by function
+%   y         [M_.endo_nbr by 1]      double   vector of endogenous variables in declaration order
+%   x         [M_.exo_nbr by 1]       double   vector of exogenous variables in declaration order
+%   params    [M_.param_nbr by 1]     double   vector of parameter values in declaration order
+%                                              to evaluate the model
+%   T_flag    boolean                 boolean  flag saying whether or not to calculate temporary terms
+%
+% Output:
+%   residual
+%
+
+if T_flag
+    T = NC_SCC_Hybrid.static_resid_tt(T, y, x, params);
+end
+residual = zeros(168, 1);
+    residual(1) = (y(7)) - (params(106)*(1+y(2))^(1-params(89)));
+    residual(2) = (y(45)) - (y(7)*y(45)+y(8)^(1-params(89))/(1-params(89)));
+residual(3) = y(37);
+    residual(4) = (y(73)) - (y(8)^(-params(89)));
+residual(5) = y(72);
+    residual(6) = (y(46)) - (T(1));
+    residual(7) = (y(48)) - (T(2));
+    residual(8) = (y(50)) - (T(3));
+    residual(9) = (y(52)) - (T(4));
+    residual(10) = (y(54)) - (T(5));
+    residual(11) = (y(56)) - (T(6));
+    residual(12) = (y(58)) - (T(7));
+    residual(13) = (y(60)) - (T(8));
+    residual(14) = (y(62)) - (T(9));
+    residual(15) = (y(44)) - (y(1)*params(1)*y(13));
+    residual(16) = (y(43)) - (y(43)+y(4)*params(98)*(params(99)*y(38)-y(43))+log(y(5)));
+    residual(17) = (y(38)) - (params(100)+y(39)+y(40)+y(41)+y(42));
+    residual(18) = (y(39)) - (y(39)*(1-params(90))+y(44)*params(94));
+    residual(19) = (y(40)) - (y(40)*(1-params(91))+y(44)*params(95));
+    residual(20) = (y(41)) - (y(41)*(1-params(92))+y(44)*params(96));
+    residual(21) = (y(42)) - (y(42)*(1-params(93))+y(44)*params(97));
+    residual(22) = (y(75)) - (y(4)*params(98)*params(99)*y(80));
+    residual(23) = (y(76)) - (y(7)*(y(4)*params(98)*params(99)*y(80)+(1-params(90))*y(76)));
+    residual(24) = (y(77)) - (y(7)*(y(4)*params(98)*params(99)*y(80)+(1-params(91))*y(77)));
+    residual(25) = (y(78)) - (y(7)*(y(4)*params(98)*params(99)*y(80)+(1-params(92))*y(78)));
+    residual(26) = (y(79)) - (y(7)*(y(4)*params(98)*params(99)*y(80)+(1-params(93))*y(79)));
+    residual(27) = (y(80)) - (y(80)*y(84)*(1-y(4)*params(98))-(y(84)*params(78)*params(101)*y(63)*y(20)+y(84)*params(73)*params(101)*y(61)*y(19)+y(84)*params(68)*params(101)*y(59)*y(18)+y(84)*params(63)*params(101)*y(57)*y(17)+y(84)*params(58)*params(101)*y(55)*y(16)+y(84)*params(53)*params(101)*y(53)*y(15)+y(84)*params(48)*params(101)*y(51)*y(14)+y(84)*params(38)*params(101)*y(47)*y(10)+y(85)*params(39)*params(101)*y(89)*y(90)+y(86)*params(40)*params(101)*y(91)*y(92)+y(87)*params(41)*params(101)*y(93)*y(94)+y(88)*params(42)*params(101)*y(95)*y(96)+y(85)*params(49)*params(101)*y(97)*y(98)+y(86)*params(50)*params(101)*y(99)*y(100)+y(87)*params(51)*params(101)*y(101)*y(102)+y(88)*params(52)*params(101)*y(103)*y(104)+y(85)*params(54)*params(101)*y(105)*y(106)+y(86)*params(55)*params(101)*y(107)*y(108)+y(87)*params(56)*params(101)*y(109)*y(110)+y(88)*params(57)*params(101)*y(111)*y(112)+y(85)*params(59)*params(101)*y(113)*y(114)+y(86)*params(60)*params(101)*y(115)*y(116)+y(87)*params(61)*params(101)*y(117)*y(118)+y(88)*params(62)*params(101)*y(119)*y(120)+y(85)*params(64)*params(101)*y(121)*y(122)+y(86)*params(65)*params(101)*y(123)*y(124)+y(87)*params(66)*params(101)*y(125)*y(126)+y(88)*params(67)*params(101)*y(127)*y(128)+y(85)*params(69)*params(101)*y(129)*y(130)+y(86)*params(70)*params(101)*y(131)*y(132)+y(87)*params(71)*params(101)*y(133)*y(134)+y(88)*params(72)*params(101)*y(135)*y(136)+y(85)*params(74)*params(101)*y(137)*y(138)+y(86)*params(75)*params(101)*y(139)*y(140)+y(87)*params(76)*params(101)*y(141)*y(142)+y(88)*params(77)*params(101)*y(143)*y(144)+y(85)*params(79)*params(101)*y(145)*y(146)+y(86)*params(80)*params(101)*y(147)*y(148)+y(87)*params(81)*params(101)*y(149)*y(150)+y(88)*params(82)*params(101)*y(151)*y(152))-(y(84)*params(43)*params(101)*y(49)*y(11)+y(85)*params(44)*params(101)*y(153)*y(154)+y(86)*params(45)*params(101)*y(155)*y(156)+y(87)*params(46)*params(101)*y(157)*y(158)+y(88)*params(47)*params(101)*y(159)*y(160)));
+    residual(28) = (y(84)) - (y(7));
+    residual(29) = (y(85)) - (y(84)*y(7)*y(161)/y(73));
+    residual(30) = (y(86)) - (y(85)*y(7)*y(162)/y(161));
+    residual(31) = (y(87)) - (y(86)*y(7)*y(163)/y(162));
+    residual(32) = (y(88)) - (y(87)*y(7)*y(164)/y(163));
+    residual(33) = (y(81)) - (y(1)*(params(94)*y(76)+params(95)*y(77)+params(96)*y(78)+params(97)*y(79)));
+    residual(34) = ((1+y(2))*y(22)) - (params(107)+y(22)*(1-params(5))+params(3)*y(21));
+    residual(35) = (y(10)) - (y(22)*y(46)*params(4));
+    residual(36) = ((1+y(2))*y(64)) - (y(7)*((1-params(5))*y(64)+y(47)*y(46)*params(4)));
+    residual(37) = ((1+y(2))*y(24)) - (params(107)+y(24)*(1-params(8))+params(6)*y(23));
+    residual(38) = (y(14)) - (y(24)*y(50)*params(7));
+    residual(39) = ((1+y(2))*y(65)) - (y(7)*((1-params(8))*y(65)+y(51)*y(50)*params(7)));
+    residual(40) = ((1+y(2))*y(26)) - (params(107)+y(26)*(1-params(11))+params(9)*y(25));
+    residual(41) = (y(15)) - (y(26)*y(52)*params(10));
+    residual(42) = ((1+y(2))*y(66)) - (y(7)*((1-params(11))*y(66)+y(53)*y(52)*params(10)));
+    residual(43) = ((1+y(2))*y(28)) - (params(107)+y(28)*(1-params(14))+params(12)*y(27)*y(6));
+    residual(44) = (y(16)) - (y(28)*y(54)*params(13));
+    residual(45) = ((1+y(2))*y(67)) - (y(7)*((1-params(14))*y(67)+y(55)*y(54)*params(13)));
+    residual(46) = ((1+y(2))*y(30)) - (params(107)+y(30)*(1-params(17))+params(15)*y(29));
+    residual(47) = (y(17)) - (y(30)*y(56)*params(16));
+    residual(48) = ((1+y(2))*y(68)) - (y(7)*((1-params(17))*y(68)+y(57)*y(56)*params(16)));
+    residual(49) = ((1+y(2))*y(32)) - (params(107)+y(32)*(1-params(20))+params(18)*y(31));
+    residual(50) = (y(18)) - (y(32)*y(58)*params(19));
+    residual(51) = ((1+y(2))*y(69)) - (y(7)*((1-params(20))*y(69)+y(59)*y(58)*params(19)));
+    residual(52) = ((1+y(2))*y(34)) - (params(107)+y(34)*(1-params(23))+params(21)*y(33));
+    residual(53) = (y(19)) - (y(34)*y(60)*params(22));
+    residual(54) = ((1+y(2))*y(70)) - (y(7)*((1-params(23))*y(70)+y(61)*y(60)*params(22)));
+    residual(55) = ((1+y(2))*y(36)) - (params(107)+y(36)*(1-params(26))+params(24)*y(35));
+    residual(56) = (y(20)) - (y(36)*y(62)*params(25));
+    residual(57) = ((1+y(2))*y(71)) - (y(7)*((1-params(26))*y(71)+y(63)*y(62)*params(25)));
+    residual(58) = (y(11)) - (y(48)*y(3)*params(102)*params(2));
+    residual(59) = (y(64)) - (1/params(3));
+    residual(60) = (y(68)) - (1/params(15));
+    residual(61) = (y(69)) - (1/params(18));
+    residual(62) = (y(70)) - (1/params(21));
+    residual(63) = (y(71)) - (1/params(24));
+    residual(64) = (y(65)) - (1/params(6));
+    residual(65) = (y(66)) - (1/params(9));
+    residual(66) = (y(67)) - (1/(params(12)*y(6)));
+    residual(67) = (y(49)) - (T(11)*T(12)*T(14));
+    residual(68) = (y(47)) - (T(11)*T(12)*T(15));
+    residual(69) = (y(59)) - (T(11)*T(12)*T(16));
+    residual(70) = (y(61)) - (T(11)*T(12)*T(17));
+    residual(71) = (y(63)) - (T(11)*T(12)*T(18));
+    residual(72) = (y(82)) - (T(11)*T(12)*T(19));
+    residual(73) = (y(83)) - (T(22)*T(23)*T(25)-params(1)*y(81));
+    residual(74) = (y(57)) - (T(25)*T(23)*T(27));
+    residual(75) = (y(51)) - (T(30)*T(31)*T(33));
+    residual(76) = (y(53)) - (T(33)*T(31)*T(35));
+    residual(77) = (y(55)) - (T(33)*T(31)*T(37));
+    residual(78) = (y(74)) - (1);
+    residual(79) = (y(9)) - (params(83)*T(38)^(params(86)/(params(86)-1)));
+    residual(80) = (y(12)) - (params(84)*T(39)^(params(87)/(params(87)-1)));
+    residual(81) = (y(13)) - (params(85)*T(40)^(params(88)/(params(88)-1)));
+    residual(82) = (y(9)) - (y(35)+y(33)+y(31)+y(29)+y(27)+y(25)+y(23)+y(8)+y(21));
+    residual(83) = (y(1)) - ((1+y(2))*y(1));
+    residual(84) = (y(2)) - (y(2)*(1-params(105)));
+    residual(85) = (log(y(3))) - (log(y(3))*params(109)+x(1));
+    residual(86) = (log(y(4))) - (log(y(4))*params(110)+x(2));
+    residual(87) = (log(y(5))) - (log(y(5))*params(110)+x(3));
+    residual(88) = (log(y(6))) - (log(y(6))*params(111)+x(4));
+    residual(89) = (y(89)) - (y(47));
+    residual(90) = (y(90)) - (y(10));
+    residual(91) = (y(91)) - (y(89));
+    residual(92) = (y(92)) - (y(90));
+    residual(93) = (y(93)) - (y(91));
+    residual(94) = (y(94)) - (y(92));
+    residual(95) = (y(95)) - (y(93));
+    residual(96) = (y(96)) - (y(94));
+    residual(97) = (y(97)) - (y(51));
+    residual(98) = (y(98)) - (y(14));
+    residual(99) = (y(99)) - (y(97));
+    residual(100) = (y(100)) - (y(98));
+    residual(101) = (y(101)) - (y(99));
+    residual(102) = (y(102)) - (y(100));
+    residual(103) = (y(103)) - (y(101));
+    residual(104) = (y(104)) - (y(102));
+    residual(105) = (y(105)) - (y(53));
+    residual(106) = (y(106)) - (y(15));
+    residual(107) = (y(107)) - (y(105));
+    residual(108) = (y(108)) - (y(106));
+    residual(109) = (y(109)) - (y(107));
+    residual(110) = (y(110)) - (y(108));
+    residual(111) = (y(111)) - (y(109));
+    residual(112) = (y(112)) - (y(110));
+    residual(113) = (y(113)) - (y(55));
+    residual(114) = (y(114)) - (y(16));
+    residual(115) = (y(115)) - (y(113));
+    residual(116) = (y(116)) - (y(114));
+    residual(117) = (y(117)) - (y(115));
+    residual(118) = (y(118)) - (y(116));
+    residual(119) = (y(119)) - (y(117));
+    residual(120) = (y(120)) - (y(118));
+    residual(121) = (y(121)) - (y(57));
+    residual(122) = (y(122)) - (y(17));
+    residual(123) = (y(123)) - (y(121));
+    residual(124) = (y(124)) - (y(122));
+    residual(125) = (y(125)) - (y(123));
+    residual(126) = (y(126)) - (y(124));
+    residual(127) = (y(127)) - (y(125));
+    residual(128) = (y(128)) - (y(126));
+    residual(129) = (y(129)) - (y(59));
+    residual(130) = (y(130)) - (y(18));
+    residual(131) = (y(131)) - (y(129));
+    residual(132) = (y(132)) - (y(130));
+    residual(133) = (y(133)) - (y(131));
+    residual(134) = (y(134)) - (y(132));
+    residual(135) = (y(135)) - (y(133));
+    residual(136) = (y(136)) - (y(134));
+    residual(137) = (y(137)) - (y(61));
+    residual(138) = (y(138)) - (y(19));
+    residual(139) = (y(139)) - (y(137));
+    residual(140) = (y(140)) - (y(138));
+    residual(141) = (y(141)) - (y(139));
+    residual(142) = (y(142)) - (y(140));
+    residual(143) = (y(143)) - (y(141));
+    residual(144) = (y(144)) - (y(142));
+    residual(145) = (y(145)) - (y(63));
+    residual(146) = (y(146)) - (y(20));
+    residual(147) = (y(147)) - (y(145));
+    residual(148) = (y(148)) - (y(146));
+    residual(149) = (y(149)) - (y(147));
+    residual(150) = (y(150)) - (y(148));
+    residual(151) = (y(151)) - (y(149));
+    residual(152) = (y(152)) - (y(150));
+    residual(153) = (y(153)) - (y(49));
+    residual(154) = (y(154)) - (y(11));
+    residual(155) = (y(155)) - (y(153));
+    residual(156) = (y(156)) - (y(154));
+    residual(157) = (y(157)) - (y(155));
+    residual(158) = (y(158)) - (y(156));
+    residual(159) = (y(159)) - (y(157));
+    residual(160) = (y(160)) - (y(158));
+    residual(161) = (y(161)) - (y(73));
+    residual(162) = (y(162)) - (y(161));
+    residual(163) = (y(163)) - (y(162));
+    residual(164) = (y(164)) - (y(163));
+    residual(165) = (y(165)) - (y(43));
+    residual(166) = (y(166)) - (y(165));
+    residual(167) = (y(167)) - (y(166));
+    residual(168) = (y(168)) - (y(167));
+
+end

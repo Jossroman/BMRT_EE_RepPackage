@@ -1,0 +1,896 @@
+%%% January 2026
+%%% G. Benmir, A. Mori, J. Roman, R. Tarsia
+%%% NC SCC
+
+%----------------------------------------------------------------
+% 0. Housekeeping and Options Declaration
+%----------------------------------------------------------------
+
+close all;
+
+@#define growth_periods = 2000
+@#define convergence_periods = growth_periods / 2
+
+@#ifndef exercise
+    @#define exercise = 0
+    // 0 = SS + model without growth
+    // 1 = Stoch_simul
+    // 2 = Transition
+    // 3 = Perfect forseight as shock
+    // 4 = IRF Discovery
+@#endif
+
+@#if exercise == 3
+    @#ifndef anticipated
+        @#define anticipated = 0
+        // 0 = Surprise shock
+        // 1 = Anticipated shock
+    @#endif
+@#endif
+
+
+@#if exercise == 4 || exercise == 3
+    @#ifndef fully_detrended
+        @#define fully_detrended = 1
+        // 1 = Fully detrended model
+    @#endif
+@#else
+    @#ifndef fully_detrended
+        @#define fully_detrended = 0
+        // 1 = Fully detrended model
+    @#endif
+@#endif
+
+// Select whether we want habits or not (Habits are important to generate volatility in the CO2 price (cf. Green Asset Pricing))
+@#ifndef habits
+    @#define habits = 0
+    // 0 = no habits
+    // 1 = habits
+@#endif
+
+@#ifndef climate_model
+    @#define climate_model = 0
+    // 0 = Matthews
+    // 1 = Joos
+@#endif
+
+@#ifndef climate_calib
+    @#define climate_calib = 0
+    // 0 = Baseline
+    // 1 = Sensitivity
+@#endif
+
+
+// Here I define all types of structures I use in the macro-processor
+@#define Lag = 5
+@#define All_Y = ["K","AL","Energy","Fossil","Coal", "Oil","Gas", "Renewable","Land", "Minerals", "Eco_Services" ]
+@#define All_D = ["K","Coal", "Oil","Gas", "Renewable","Land", "Minerals", "Eco_Services" ]
+@#define All_D_NonFossil = ["K", "Renewable","Land", "Minerals", "Eco_Services" ]
+@#define Fossil_D = ["Coal", "Oil", "Gas" ]
+@#define Shadow_V = ["K","AL","Coal", "Oil","Gas", "Renewable","Land", "Minerals", "Eco_Services" ]
+@#define All_SS = ["K","Coal", "Oil","Gas","Land", "Minerals", "Eco_Services" ]
+@#define Y_in_CES = ["K","AL","Energy","Land", "Minerals", "Eco_Services" ]
+@#define Nat_Capital_No_Energy_Names = ["K","Land", "Minerals", "Eco_Services" ]
+@#define Energy_CES = ["Fossil", "Renewable" ]
+@#define Fossil_CES = ["Coal", "Oil","Gas" ]
+@#define Climate_Boxes = ["0","1","2","3" ]
+
+
+%----------------------------------------------------------------
+% 1. Var, Varexo, and Params Declaration
+%----------------------------------------------------------------
+
+
+var
+e_a $A$ (long_name='TFP Trend Law of Motion')
+g_a $\gamma_A$ (long_name='TFP Growth Law of Motion')
+e_a_shock $e_A$ (long_name='TFP Shock Process')
+e_t_shock_1 $e_T$ (long_name='Temperatue Shock Process')
+e_t_shock_2 $e_T$ (long_name='Temperatue Shock Process')
+e_d_shock $e_D$ (long_name='Discovery Shock Process')
+beta $\beta$ (long_name='Discount Factor')
+c_t $C$ (long_name='Aggregate Consumption')
+y_t $Y$ (long_name='Aggregate Output')
+@#for i in All_Y
+    y_@{i} $Y_@{i}$ (long_name='@{i} Output')
+@#endfor
+@#for i in All_D
+    d_@{i} $D_@{i}$ (long_name='@{i} Output')
+    s_@{i} $S_@{i}$ (long_name='@{i} Stock')
+@#endfor
+h $H$ (long_name='Consumption Habits')
+x_tot $X$ (long_name='Cumulative emissions')
+@#if climate_model == 1
+    x_box0 $x_box0$ (long_name='Cumulative emissions box 0')
+    x_box1 $X_1$ (long_name='Cumulative emissions box 1')
+    x_box2 $X_2$ (long_name='Cumulative emissions box 2')
+    x_box3 $X_3$ (long_name='Cumulative emissions box 3')
+@#endif    
+t $T$ (long_name='Temperature')
+e $E$ (long_name='Emissions')
+welfare $Welfare$ (long_name='Welfare')
+@#for i in Shadow_V
+    d_t_@{i} $D_T_@{i}$ (long_name='Damage Function @{i}')
+    v_@{i} $V_@{i}$ (long_name='@{i} Lagrangian')
+@#endfor
+@#for i in All_D
+    r_@{i} $R_@{i}$ (long_name='@{i} Stock Lagrangian')
+@#endfor
+lambda_h $Habits Shadow Price$ (long_name='Lagrangian Habits')
+lambda $Consumption Shadow Price$ (long_name='Lagrangian Consumption')
+v_y_t $Shadow Price of Total Output$ (long_name='Lagrangian Y_T')
+v_x_tot $Shadow Price of Total Cumulative Emissions$ (long_name='Lagrangian X')
+@#if climate_model == 1
+    v_x_box0 $Shadow Price of Total Cumulative Emissions 1$ (long_name='Lagrangian X_0')
+    v_x_box1 $Shadow Price of Total Cumulative Emissions 1$ (long_name='Lagrangian X_1')
+    v_x_box2 $Shadow Price of Total Cumulative Emissions 2$ (long_name='Lagrangian X_2')
+    v_x_box3 $Shadow Price of Total Cumulative Emissions 3$ (long_name='Lagrangian X_3')
+@#endif
+v_t $Shadow Price of Total Temperature$ (long_name='Lagrangian T')
+v_emission $Shadow Price of Emission$ (long_name='SCC')
+v_Energy $Shadow Price of Energy $ (long_name='Lagrangian Energy 2nd')
+v_Fossil $Shadow Price of Fossil Energy $ (long_name='Lagrangian Fossil 2nd')
+@#for m in 1:Lag
+    discount_factor_@{m} $Discount Factor_@{m}$ (long_name='Discount Factor_@{m}')
+@#endfor
+;
+
+varexo
+eta_a $ eta^{a}$ (long_name='Innovation to TFP')
+eta_t_1 $ eta^{t_1}$ (long_name='Innovation to Temperature')
+eta_t_2 $ eta^{t_2}$ (long_name='Innovation to Temperature')
+eta_d $ eta^{d}$ (long_name='Innovation to Discovery')
+;
+
+parameters
+
+phi_emission $\Phi_E$ (long_name='Emission intensity')
+L $L$ (long_name='Labour')
+@#for i in All_D
+    ALPHA_@{i} $\alpha_@{i}$ (long_name='@{i} level of investment at the SS')
+    KAPPA_@{i} $\phi_@{i}$ (long_name='@{i} level param for NC output as % of total stock')
+    DELTA_S_@{i} $\delta_s_@{i}$ (long_name='@{i} depreciation rate')
+@#endfor
+@#for i in All_Y
+    GAMMA_@{i} $\gamma_@{i}$ (long_name='@{i} CES weight')
+@#endfor
+@#for i in Shadow_V
+    @#for m in 1:Lag
+        D1_@{i}_@{m} $d1_@{i}_@{m}$ (long_name='@{i}_@{m} damage param 1')
+    @#endfor
+@#endfor
+G_Y $\g_Y$ (long_name='Y_T CES adjustment Param')
+G_E $\g_E$ (long_name='Y_Energy CES adjustment Param')
+G_F $\g_F$ (long_name='Y_Fossil adjustment Param')
+EPS_Y $\sigma_Y$ (long_name='Output Elasticity')
+EPS_E $\sigma_Y$ (long_name='Energy Elasticity')
+EPS_F $\sigma_Y$ (long_name='Fossil Elasticity')
+SIGMA $\{\sigm_y}_2$ (long_name='Risk Aversion')
+@#if climate_model == 0        
+    DELTA_X_TOT $\delta_x_tot$ (long_name='Decay Rate of emissions')
+@#elseif climate_model == 1        
+    DELTA_X_BOX0 $\delta_x_1$ (long_name='Decay Rate of emissions 1')
+    DELTA_X_BOX1 $\delta_x_2$ (long_name='Decay Rate of emissions 2')
+    DELTA_X_BOX2 $\delta_x_3$ (long_name='Decay Rate of emissions 3')
+    DELTA_X_BOX3 $\delta_x_4$ (long_name='Decay Rate of emissions 4')
+    XI_E_BOX0 $\xi_e_0$ (long_name='Emissions share in X_BOX0')
+    XI_E_BOX1 $\xi_e_1$ (long_name='Emissions share in X_BOX1')
+    XI_E_BOX2 $\xi_e_2$ (long_name='Emissions share in X_BOX2')
+    XI_E_BOX3 $\xi_e_3$ (long_name='Emissions share in X_BOX3')
+@#endif
+ZETTA_1 $\zetta_1$ (long_name='Climate Sensitivity Parameter 1')
+ZETTA_2 $\zetta_2$ (long_name='Climate Sensitivity Parameter 2')
+X_BAR $\bar{X}$ (long_name='Cumulative Emissions at the start')
+TEMP_MEAN $Temp_SS$ (long_name='Temperature Mean for the world')
+A $A$ (long_name='Labour Productivity Level')
+M $m$ (long_name='Habits level')
+GAMMA_H $\gamma$ (long_name='Habits level adjustment in the utility')
+DELTA_A $\delta_A$ (long_name='Decay rate of TFP Growth')
+BETTA $\beta$ (long_name='Discount')
+S_BAR $\bar{S}$ (long_name='Numerical accuracy adjustment constant to all stocks')
+g_a_0 $\gamma_{A_0}$ (long_name='The initial growth rate')
+RHO_A $\rho_{A}$ (long_name='Shock Persistence')
+RHO_T $\rho_{T}$ (long_name='Shock Persistence')
+RHO_D $\rho_{D}$ (long_name='Shock Persistence')
+;
+
+%----------------------------------------------------------------
+% 2. Params Calibration
+%----------------------------------------------------------------
+// Estimated Params
+%% Damage Function Params
+D1_AL_1 = -.02;
+D1_AL_2 = 0.0;
+D1_AL_3 = 0.0;
+D1_AL_4 = 0.0;
+D1_AL_5 = 0.0;
+D1_K_1 = -.029;
+D1_K_2 = -0.039;
+D1_K_3 = -0.035;
+D1_K_4 = 0.0;
+D1_K_5 = 0.0;
+D1_Coal_1 = -0.0629;
+D1_Coal_2 = -0.0575;
+D1_Coal_3 = -0.0385;
+D1_Coal_4 = 0.0;
+D1_Coal_5 = 0.0;
+D1_Oil_1 = -0.0629;
+D1_Oil_2 = -0.0575;
+D1_Oil_3 = -0.0385;
+D1_Oil_4 = 0.0;
+D1_Oil_5 = 0.0;
+D1_Gas_1 = -0.0840;
+D1_Gas_2 = -0.0877;
+D1_Gas_3 = -0.0981;
+D1_Gas_4 = 0;
+D1_Gas_5 = 0;
+D1_Renewable_1 = -0.0618877;
+D1_Renewable_2 = 0.0;
+D1_Renewable_3 = 0.0;
+D1_Renewable_4 = 0.0;
+D1_Renewable_5 = 0.0;
+D1_Land_1 = 0;
+D1_Land_2 = -0.051;
+D1_Land_3 = -0.047;
+D1_Land_4 = 0;
+D1_Land_5 = 0;
+D1_Minerals_1 = 0;
+D1_Minerals_2 = -0.082;
+D1_Minerals_3 = -0.16;
+D1_Minerals_4 = 0;
+D1_Minerals_5 = 0;
+D1_Eco_Services_1 = -0.011;
+D1_Eco_Services_2 = -0.011;
+D1_Eco_Services_3 = 0;
+D1_Eco_Services_4 = 0;
+D1_Eco_Services_5 = 0;
+
+%%CES Shares
+GAMMA_K= 0.2278;  
+GAMMA_Coal= 0.6836; 
+GAMMA_Oil= 0.3164/2;  
+GAMMA_Gas= 0.3164/2;  
+GAMMA_Renewable= .4924;  
+GAMMA_Fossil= 1 - GAMMA_Renewable;  
+GAMMA_Energy= 0.1764; 
+GAMMA_Land= 0.1178;  
+GAMMA_Minerals= 0.0155;  
+GAMMA_Eco_Services= 0.0366;  
+GAMMA_AL = 0.4261;  
+
+%%CES Elasticities
+EPS_Y =  1.7368; 
+EPS_E =  1/(1-0.4171); 
+EPS_F =  1.2700;
+
+%% Climate Params
+ZETTA_1 = .5;  // Climate sensitivity
+TEMP_MEAN = 14.5/15.5;
+@#if climate_model == 0
+    @#if climate_calib == 0
+    DELTA_X_TOT = 0.00001; // Yearly decay. This is almost 1 at quarterly level as in Matthews and all.
+    @#elseif climate_calib == 1
+    DELTA_X_TOT = 0.007;// yearly. This matches the quarterly is decay of 0.9982 
+    @#endif     
+@#elseif climate_model == 1
+    @#if climate_calib == 0
+    DELTA_X_BOX0 = 1-(0.001)^(1/@{convergence_periods}); // convergence to SS up to 0.1% precision
+    @#elseif climate_calib == 1
+    DELTA_X_BOX0 = 1-(0.001)^(1/@{convergence_periods+1000}); // convergence to SS up to 0.1% precision
+    @#endif     
+    DELTA_X_BOX1 = 1/394.4;
+    DELTA_X_BOX2 = 1/36.54;
+    DELTA_X_BOX3 = 1/4.304;
+    XI_E_BOX0 = 0.2173;
+    XI_E_BOX1 = 0.2240;
+    XI_E_BOX2 = 0.2824;
+    XI_E_BOX3 = 0.2763;
+@#endif
+%% Econ params
+SIGMA = 2;    // CRRA utility
+BETTA = .968;// 0.966183574879227;//.95;  //Time pref assuming a 3.5% world gdp-weighted interest rate
+L = 1/3; // Labour supply
+@#if habits == 0
+    M = 1;       // Habits level
+    GAMMA_H = .975;   // Habits utility
+@#elseif habits == 1
+    M = .9;       // Habits level
+    GAMMA_H = .975;   // Habits utility
+@#endif
+@#for i in All_D
+    ALPHA_@{i} = 1;
+    DELTA_S_@{i} = .05;
+@#endfor
+S_BAR =  1e-8; // for numerical accuracy and to avoid S = a flat 0 
+RHO_A = .9;
+RHO_T = .9;
+RHO_D = .5;
+// Intital Levels
+@#if exercise == 0 || exercise == 1
+    g_a_0 = 0.0; // for the moments exercise   
+@#else 
+    g_a_0 = 0.03; // Initial growth rate of TFP
+@#endif 
+
+%----------------------------------------------------------------
+% 3. Model
+%----------------------------------------------------------------
+
+model;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%% Household        %%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+[name='Beta'] 
+beta = BETTA*(1+g_a)^(1-SIGMA);
+
+[name='Welfare']
+welfare =(c_t-GAMMA_H*h(-1))^(1-SIGMA)/(1-SIGMA) + beta*welfare(+1);
+
+@#if habits == 0
+    [name='Habits']
+    h = 0;
+@#elseif habits == 1
+    [name='Habits']
+    (1+g_a)*h = M*h(-1) + (1-M)*c_t;
+@#endif
+
+[name='FOC C']
+lambda  = (c_t-GAMMA_H*h(-1))^(-SIGMA) - lambda*lambda_h*(1-M);
+
+@#if habits == 0
+    [name='FOC H']
+    lambda_h  = 0;
+@#elseif habits == 1
+    [name='FOC H']
+    (1+g_a)*lambda*lambda_h  = beta*(M*lambda(+1)*lambda_h(+1) +GAMMA_H*(c_t(+1)-GAMMA_H*h)^(-SIGMA));
+@#endif
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%% Climate Dynamics       %%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+@#for i in Shadow_V
+    [name='Damage Function @{i}']
+    d_t_@{i} = exp(
+    @#for m in 1:Lag
+        + TEMP_MEAN*D1_@{i}_@{m}*t(@{-m})
+    @#endfor
+    );
+@#endfor
+
+@#if fully_detrended == 1
+[name='Total Emissions']
+e = phi_emission*y_Fossil;
+@#else 
+[name='Total Emissions']
+e = e_a*phi_emission*y_Fossil;
+@#endif
+
+@#if fully_detrended == 1
+[name='Temperature']
+(1+g_a)*t = e_t_shock_1*ZETTA_1*(ZETTA_2*x_tot(-1) - t(-1)) + t(-1) + log(e_t_shock_2) ;
+@#else    
+[name='Temperature']
+t = e_t_shock_1*ZETTA_1*(ZETTA_2*x_tot(-1) - t(-1)) + t(-1)  + log(e_t_shock_2);
+@#endif
+
+    @#if climate_model == 0
+        @#if fully_detrended == 1
+        [name='Cumulative Emissions']
+        (1+g_a)*x_tot = X_BAR + (1-DELTA_X_TOT)*x_tot(-1) + e ;
+        @#else    
+        [name='Cumulative Emissions']
+        x_tot = X_BAR + (1-DELTA_X_TOT)*x_tot(-1) + e ;
+        @#endif
+    @#elseif climate_model == 1
+        [name='Cumulative Emissions']
+        x_tot = X_BAR + x_box0 + x_box1 + x_box2 + x_box3 ;    
+    @#endif
+
+
+@#if fully_detrended == 1
+    @#if climate_model == 1
+        @#for i in Climate_Boxes
+            [name='Cumulative Emissions @{i}']
+        (1+g_a)*x_box@{i} = (1-DELTA_X_BOX@{i})*x_box@{i}(-1) + XI_E_BOX@{i}*e;
+        @#endfor
+    @#endif
+@#else 
+    @#if climate_model == 1
+        @#for i in Climate_Boxes
+            [name='Cumulative Emissions @{i}']
+            x_box@{i} = (1-DELTA_X_BOX@{i})*x_box@{i}(-1) + XI_E_BOX@{i}*e;
+        @#endfor
+    @#endif
+@#endif    
+
+@#if climate_model == 0
+
+    @#if fully_detrended == 1
+    [name='FOC X(+1)']
+   (1+g_a)*v_x_tot = beta*lambda(+1)/lambda*( (1-DELTA_X_TOT)*v_x_tot(+1) + e_t_shock_1(+1)* ZETTA_1*ZETTA_2*v_t(+1)     );
+    @#else
+    [name='FOC X(+1)']
+    v_x_tot = beta*lambda(+1)/lambda*( (1-DELTA_X_TOT)*v_x_tot(+1) + e_t_shock_1(+1)* ZETTA_1*ZETTA_2*v_t(+1)     );
+    @#endif   
+
+@#elseif climate_model == 1
+
+    [name='FOC X(+1)']
+    v_x_tot = e_t_shock_1*ZETTA_1*ZETTA_2*v_t ;
+
+    @#if fully_detrended == 1
+        @#for i in Climate_Boxes
+            [name='FOC X(+1)_@{i}']
+           (1+g_a)*v_x_box@{i} = beta*lambda(+1)/lambda*( (1-DELTA_X_BOX@{i})*v_x_box@{i}(+1) + e_t_shock_1(+1)* ZETTA_1*ZETTA_2*v_t(+1)     );
+        @#endfor
+    
+    @#else
+        @#for i in Climate_Boxes
+            [name='FOC X(+1)_@{i}']
+            v_x_box@{i} = beta*lambda(+1)/lambda*( (1-DELTA_X_BOX@{i})*v_x_box@{i}(+1) + e_t_shock_1(+1)* ZETTA_1*ZETTA_2*v_t(+1)     );
+        @#endfor
+
+    @#endif    
+@#endif
+
+
+@#if fully_detrended == 1
+    [name='FOC T(+1)']
+   (1+g_a)*v_t = discount_factor_1 * (1 - e_t_shock_1(+1) *ZETTA_1) * v_t(+1) - (
+    @#for i in All_D
+        @#for m in 1:Lag
+            + discount_factor_@{m}* (v_@{i}(@{m}) * TEMP_MEAN*D1_@{i}_@{m} * y_@{i}(@{m}))
+        @#endfor
+    @#endfor
+    ) - (
+    @#for m in 1:Lag
+        + discount_factor_@{m}*(v_AL(@{m}) * TEMP_MEAN*D1_AL_@{m} * y_AL(@{m}))
+    @#endfor
+    );
+
+@#else
+    [name='FOC T(+1)']
+    v_t = discount_factor_1 * (1 - e_t_shock_1(+1) *ZETTA_1) * v_t(+1) - (
+    @#for i in All_D
+        @#for m in 1:Lag
+            + discount_factor_@{m}* (v_@{i}(@{m}) * TEMP_MEAN*D1_@{i}_@{m} * y_@{i}(@{m}))
+        @#endfor
+    @#endfor
+    ) - (
+    @#for m in 1:Lag
+        + discount_factor_@{m}*(v_AL(@{m}) * TEMP_MEAN*D1_AL_@{m} * y_AL(@{m}))
+    @#endfor
+    );
+
+@#endif    
+
+[name='Discount factor']
+discount_factor_1 = (beta*lambda(1)/lambda(0));
+
+@#for o in 2:m
+    discount_factor_@{o} = discount_factor_@{o-1} * (beta*lambda(@{o})/lambda(@{o}-1));
+@#endfor
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%% Social Cost of Carbon  %%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+@#if fully_detrended == 1
+
+    @#if climate_model == 0
+        [name='SCC']
+        v_emission = v_x_tot;
+    @#elseif climate_model == 1
+        [name='SCC']
+        v_emission = (XI_E_BOX0*v_x_box0 + XI_E_BOX1*v_x_box1 + XI_E_BOX2*v_x_box2 + XI_E_BOX3*v_x_box3);
+    @#endif    
+
+@#else
+    @#if climate_model == 0
+        [name='SCC']
+        v_emission = v_x_tot* e_a;
+    @#elseif climate_model == 1
+        [name='SCC']
+        v_emission = (XI_E_BOX0*v_x_box0 + XI_E_BOX1*v_x_box1 + XI_E_BOX2*v_x_box2 + XI_E_BOX3*v_x_box3)* e_a;
+    @#endif    
+
+
+@#endif    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%% NC Exhaustible Stock   %%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+@#for i in All_D 
+    [name='@{i} Exhaustible Stock Law of motion']
+    @#if i == "Gas"
+        (1+g_a)*s_@{i} = S_BAR + (1-DELTA_S_@{i})*s_@{i}(-1) + ALPHA_@{i}*d_@{i}*e_d_shock;
+    @#else
+        (1+g_a)*s_@{i} = S_BAR + (1-DELTA_S_@{i})*s_@{i}(-1) + ALPHA_@{i}*d_@{i};
+    @#endif
+
+    [name='@{i} Production in terms of stock']
+    y_@{i} = d_t_@{i}*KAPPA_@{i}*s_@{i}(-1);
+
+    [name='S_@{i}(+1) stock FOC']
+    (1+g_a)*r_@{i} =  beta*lambda(+1)/lambda*( (1-DELTA_S_@{i})*r_@{i}(+1) + KAPPA_@{i}*d_t_@{i}(+1)*v_@{i}(+1) );
+@#endfor
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%% NC + Y_KL Laws Choices  %%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+[name='K and L Production']
+y_AL = e_a_shock*d_t_AL*A*L;
+
+@#for i in All_D_NonFossil
+    [name='FOC D_@{i} ']
+    r_@{i} = 1/ALPHA_@{i} ;
+@#endfor
+
+@#for i in Fossil_D
+    [name='FOC D_@{i} ']
+    @#if i == "Gas"
+        r_@{i} = 1/(e_d_shock*ALPHA_@{i}) ;
+    @#else
+        r_@{i} = 1/ALPHA_@{i} ;
+    @#endif
+@#endfor
+
+[name='FOC Y_AL']
+v_AL = GAMMA_AL*v_y_t*(y_AL)^(-1/EPS_Y)*(y_t)^(1/EPS_Y)*(G_Y)^((EPS_Y-1)/EPS_Y);
+
+
+[name='FOC Y_k non energy (1st Layer)']
+@#for i in Nat_Capital_No_Energy_Names
+    v_@{i} = v_y_t*GAMMA_@{i}*(y_@{i})^(-1/EPS_Y)*(y_t)^(1/EPS_Y)*(G_Y)^((EPS_Y-1)/EPS_Y);
+@#endfor
+
+[name='FOC Energy (1st Layer)']
+v_Energy = v_y_t*GAMMA_Energy*(y_Energy)^(-1/EPS_Y)*(y_t)^(1/EPS_Y)*(G_Y)^((EPS_Y-1)/EPS_Y);
+
+[name='FOC Fossil (2st Layer)']
+v_Fossil = v_Energy*GAMMA_Fossil*(y_Fossil)^(-1/EPS_E)*(y_Energy)^(1/EPS_E)*G_E^((EPS_E-1)/EPS_E) - v_emission*phi_emission;
+
+[name='FOC Renewable (2st Layer)']
+v_Renewable = v_Energy*GAMMA_Renewable*(y_Renewable)^(-1/EPS_E)*(y_Energy)^(1/EPS_E)*G_E^((EPS_E-1)/EPS_E);
+
+@#for i in Fossil_CES
+    [name='FOC @{i} (3rd Layer)']
+    v_@{i} = v_Fossil*GAMMA_@{i}*(y_@{i})^(-1/EPS_F)*(y_Fossil)^(1/EPS_F)*G_F^((EPS_F-1)/EPS_F);
+@#endfor
+
+[name='FOC Y_T']
+v_y_t = 1;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%% Aggregate Outputs %%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+[name='Aggregate GDP']
+y_t = G_Y*(
+@#for i in Y_in_CES
+    + GAMMA_@{i}*(y_@{i})^((EPS_Y-1)/EPS_Y)
+@#endfor
+)^ (EPS_Y / (EPS_Y - 1));
+
+[name='Energy']
+y_Energy = G_E*(
+@#for i in Energy_CES
+    +GAMMA_@{i}*(y_@{i})^((EPS_E-1)/EPS_E)
+@#endfor
+)^ (EPS_E / (EPS_E - 1));
+
+[name='Fossil Energy']
+y_Fossil = G_F*(
+@#for i in Fossil_CES
+    +GAMMA_@{i}*(y_@{i})^((EPS_F-1)/EPS_F)
+@#endfor
+)^ (EPS_F / (EPS_F - 1));
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%% Market Clearing  %%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+[name='Aggregate Resource Constraint']
+y_t = c_t
+@#for i in All_D
+    + d_@{i}
+@#endfor
+;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%% Shocks %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+@#if exercise == 0 || exercise == 1 || exercise == 3 || exercise == 4
+    [name='TFP Trend Law of Motion']
+    e_a = 1 ;
+
+    [name='TFP Growth Law of Motion']
+    g_a = g_a_0;
+
+    [name='TFP Shock Process']
+    log(e_a_shock) = RHO_A*log(e_a_shock(-1)) + eta_a;
+
+    [name='Temperature Shock Process']
+    log(e_t_shock_1) = RHO_T*log(e_t_shock_1(-1)) + eta_t_1;
+
+    [name='Temperature Shock Process']
+    log(e_t_shock_2) = RHO_T*log(e_t_shock_2(-1)) + eta_t_2;
+
+    [name='Discovery Shock Law of Motion']
+    log(e_d_shock) = RHO_D*log(e_d_shock(-1)) + eta_d;
+
+@#elseif exercise == 2
+    [name='TFP Trend Law of Motion']
+    e_a = e_a(-1) * (1 + g_a(-1));
+
+    [name='TFP Growth Law of Motion']
+    g_a = g_a(-1) * (1-DELTA_A);
+
+    [name='TFP Shock Process']
+    log(e_a_shock) = RHO_A*log(e_a_shock(-1)) + eta_a;
+
+    [name='Temperature Shock Process']
+    log(e_t_shock_1) = RHO_T*log(e_t_shock_1(-1)) + eta_t_1;
+
+    [name='Temperature Shock Process']
+    log(e_t_shock_2) = RHO_T*log(e_t_shock_2(-1)) + eta_t_2;
+
+    [name='Discovery Shock Law of Motion']
+    log(e_d_shock) = RHO_D*log(e_d_shock(-1)) + eta_d;
+
+@#endif
+end;
+
+%----------------------------------------------------------------
+% 4. Steady State Model
+%----------------------------------------------------------------
+
+steady_state_model;
+e_a_shock = 1; // TFP Shock Process
+e_t_shock_1 = 1;
+e_t_shock_2 = 1;
+e_d_shock = 1;
+e_a = 1; // Initial level of TFP
+g_a = g_a_0; // Initial growth rate of TFP
+
+//Here we match all the targets (i.e. values at the start)
+e = .03677; // In trillion TCO2 
+t = 1.12; 
+x_tot = 1.63; //3.12
+@#if fully_detrended == 1
+ZETTA_2 = (ZETTA_1+g_a)*t/(ZETTA_1*x_tot)  ;
+@#else
+ZETTA_2 = t/x_tot;
+@#endif
+
+
+@#if climate_model == 0
+    @#if fully_detrended == 1
+    X_BAR = (g_a+DELTA_X_TOT)*x_tot - e;
+    @#else
+    X_BAR = DELTA_X_TOT*x_tot - e;
+    @#endif
+
+@#elseif climate_model == 1
+    @#if fully_detrended == 1
+        @#if exercise == 0 || exercise == 1 || exercise == 3
+            x_box0 =  XI_E_BOX0*e/(g_a+DELTA_X_BOX0);
+            x_box1 =  XI_E_BOX1*e/(g_a+DELTA_X_BOX1);
+            x_box2 =  XI_E_BOX2*e/(g_a+DELTA_X_BOX2);
+            x_box3 =  XI_E_BOX3*e/(g_a+DELTA_X_BOX3);
+        @#elseif exercise == 2
+            x_box0 =  0;
+            x_box1 =  0;
+            x_box2 =  0;
+            x_box3 =  0;
+        @#endif
+    @#else
+        @#if exercise == 0 || exercise == 1 || exercise == 3
+            x_box0 =  XI_E_BOX0*e/DELTA_X_BOX0;
+            x_box1 =  XI_E_BOX1*e/DELTA_X_BOX1;
+            x_box2 =  XI_E_BOX2*e/DELTA_X_BOX2;
+            x_box3 =  XI_E_BOX3*e/DELTA_X_BOX3;
+        @#elseif exercise == 2
+            x_box0 =  0;
+            x_box1 =  0;
+            x_box2 =  0;
+            x_box3 =  0;
+        @#endif
+    @#endif
+
+    X_BAR = x_tot - (x_box0 + x_box1 + x_box2 + x_box3);
+
+@#endif
+
+@#for i in Shadow_V
+    d_t_@{i} = exp(
+    @#for m in 1:Lag
+        + TEMP_MEAN*D1_@{i}_@{m}*t
+    @#endfor
+    );
+@#endfor
+
+y_Coal = 3.48280283996;// 4.23485; //(In Tillion Dollars)
+y_Gas = 3.26804535279800;//0.84176892007; //(In Tillion)
+y_Oil =  18.631765925341998;//3.59425; //(In Tillion Dollars)
+y_Land = 20.858794071938;//	11.6066; //(In Tillion Dollars)
+y_Minerals = 3.076146647048000;//1.21952; //(In Tillion Dollars)
+y_Eco_Services = 7.362862312826;//6.36625; //(In Tillion Dollars)
+y_K = 358.496430394957;//34.626; //(In Tillion Dollars)
+y_AL = 727.209555089740;// 85.4098; //(In Tillion Dollars)
+y_Fossil = y_Coal + y_Gas + y_Oil;//(In Tillion Dollars)
+y_Renewable = 0.5427; // (In Trillion Dollrs: The global average cost of electricity from renewable $81 per megawatt-hour (MWh) in 2018 (the global average cost for offshore wind was).) 6.7 petawatt-hours (PWh) in 2018. 6,700,000,000 MWh × $81/MWh = $542.7 billion.
+y_Energy = y_Renewable + y_Fossil;
+y_t = 86.5; //(In Tillion Dollars)
+
+phi_emission = e/y_Fossil;
+
+@#if exercise == 2
+    [decays_1,decays_2,decays_3] = calibrate_decays(@{growth_periods}, g_a, phi_emission);
+    DELTA_A = decays_1;
+@#endif 
+
+beta = BETTA*(1+g_a)^(1-SIGMA);
+
+discount_factor_1 = beta;
+@#for o in 2:m
+    discount_factor_@{o} = discount_factor_@{o-1}*beta;
+@#endfor
+
+G_F = y_Fossil/(
+@#for i in Fossil_CES
+    +GAMMA_@{i}*(y_@{i})^((EPS_F-1)/EPS_F)
+@#endfor
+)^ (EPS_F / (EPS_F - 1));
+
+G_E = y_Energy/(
+@#for i in Energy_CES
+    +GAMMA_@{i}*(y_@{i})^((EPS_E-1)/EPS_E)
+@#endfor
+)^ (EPS_E / (EPS_E - 1));
+
+G_Y = y_t/((
+@#for i in Y_in_CES
+    + GAMMA_@{i}*y_@{i}^((EPS_Y-1)/EPS_Y)
+@#endfor
+)^ (EPS_Y / (EPS_Y - 1)));
+
+v_y_t = 1;
+v_AL = GAMMA_AL*v_y_t*(y_AL)^(-1/EPS_Y)*(y_t)^(1/EPS_Y)*(G_Y)^((EPS_Y-1)/EPS_Y);
+A = y_AL/(e_a_shock*d_t_AL*L) ;
+
+
+@#for i in Nat_Capital_No_Energy_Names
+    v_@{i} = v_y_t*GAMMA_@{i}*(y_@{i})^(-1/EPS_Y)*(y_t)^(1/EPS_Y)*(G_Y)^((EPS_Y-1)/EPS_Y);
+@#endfor
+
+v_Energy = v_y_t*GAMMA_Energy*(y_Energy)^(-1/EPS_Y)*(y_t)^(1/EPS_Y)*(G_Y)^((EPS_Y-1)/EPS_Y);
+v_Renewable = v_Energy*GAMMA_Renewable*(y_Renewable)^(-1/EPS_E)*(y_Energy)^(1/EPS_E)*G_E^((EPS_E-1)/EPS_E);
+
+
+@#if fully_detrended == 1
+g_aa = g_a_0;
+@#else
+g_aa = 0;
+@#endif
+
+@#if climate_model == 0
+    [v_Coal,v_Oil,v_Gas,v_t,v_x_tot,v_emission,v_Fossil] = get_ss_v_nc_hybrid_0(TEMP_MEAN,phi_emission,discount_factor_1,discount_factor_2,discount_factor_3,discount_factor_4,discount_factor_5,G_E,G_F, y_AL, y_Coal, y_Oil, y_Gas, 
+    y_Renewable, y_Land, y_Minerals, y_Eco_Services, y_K, v_Renewable, v_Land, v_Minerals, v_Eco_Services, v_K, v_AL, 
+    D1_AL_1,D1_AL_2,D1_AL_3,D1_AL_4,D1_AL_5,  D1_K_1,D1_K_2,D1_K_3,D1_K_4,D1_K_5, D1_Coal_1, D1_Coal_2, D1_Coal_3,D1_Coal_4,D1_Coal_5, D1_Oil_1,D1_Oil_2,D1_Oil_3, D1_Oil_4,
+    D1_Oil_5, D1_Gas_1, D1_Gas_2,D1_Gas_3,D1_Gas_4,D1_Gas_5, D1_Renewable_1,D1_Renewable_2, 
+    D1_Renewable_3, D1_Renewable_4,D1_Renewable_5, D1_Land_1,D1_Land_2,D1_Land_3,D1_Land_4,D1_Land_5, 
+    D1_Minerals_1, D1_Minerals_2,D1_Minerals_3,D1_Minerals_4,D1_Minerals_5, D1_Eco_Services_1, D1_Eco_Services_2, 
+    D1_Eco_Services_3,D1_Eco_Services_4,D1_Eco_Services_5,GAMMA_Coal, EPS_F, y_Fossil, 
+    GAMMA_Oil, GAMMA_Gas, beta, ZETTA_1, ZETTA_2, GAMMA_Fossil, v_Energy, EPS_E, y_Energy, e_a,
+    DELTA_X_TOT,g_aa);
+
+@#elseif climate_model == 1    
+    [v_Coal,v_Oil,v_Gas,v_t,v_x_tot,v_emission,v_Fossil,v_x_box0,v_x_box1,v_x_box2,v_x_box3] = get_ss_v_nc_hybrid(TEMP_MEAN,phi_emission,discount_factor_1,discount_factor_2,discount_factor_3,discount_factor_4,discount_factor_5,G_E,G_F, y_AL, y_Coal, y_Oil, y_Gas, 
+    y_Renewable, y_Land, y_Minerals, y_Eco_Services, y_K, v_Renewable, v_Land, v_Minerals, v_Eco_Services, v_K, v_AL, 
+    D1_AL_1,D1_AL_2,D1_AL_3,D1_AL_4,D1_AL_5,  D1_K_1,D1_K_2,D1_K_3,D1_K_4,D1_K_5, D1_Coal_1, D1_Coal_2, D1_Coal_3,D1_Coal_4,D1_Coal_5, D1_Oil_1,D1_Oil_2,D1_Oil_3, D1_Oil_4,
+    D1_Oil_5, D1_Gas_1, D1_Gas_2,D1_Gas_3,D1_Gas_4,D1_Gas_5, D1_Renewable_1,D1_Renewable_2, 
+    D1_Renewable_3, D1_Renewable_4,D1_Renewable_5, D1_Land_1,D1_Land_2,D1_Land_3,D1_Land_4,D1_Land_5, 
+    D1_Minerals_1, D1_Minerals_2,D1_Minerals_3,D1_Minerals_4,D1_Minerals_5, D1_Eco_Services_1, D1_Eco_Services_2, 
+    D1_Eco_Services_3,D1_Eco_Services_4,D1_Eco_Services_5,GAMMA_Coal, EPS_F, y_Fossil, 
+    GAMMA_Oil, GAMMA_Gas, beta, ZETTA_1, ZETTA_2, GAMMA_Fossil, v_Energy, EPS_E, y_Energy, e_a,
+    DELTA_X_BOX0,DELTA_X_BOX1,DELTA_X_BOX2,DELTA_X_BOX3,XI_E_BOX0,XI_E_BOX1,XI_E_BOX2,XI_E_BOX3,g_aa);
+
+
+@#endif
+
+@#for i in All_D
+    r_@{i} = 1/ALPHA_@{i} ;   
+    KAPPA_@{i} = ((1+g_a)*r_@{i} /beta  - S_BAR -(1-DELTA_S_@{i})*r_@{i} ) / (d_t_@{i}*v_@{i});
+    s_@{i}  = y_@{i}/(d_t_@{i}*KAPPA_@{i});
+    d_@{i} = (g_a+DELTA_S_@{i})*s_@{i} / ALPHA_@{i};
+@#endfor
+
+c_t = y_t
+@#for i in All_D
+    - d_@{i}
+@#endfor
+;
+@#if habits == 0
+    h = 0;
+@#elseif habits == 1
+    h = (1-M)*c_t/(1+g_a-M);
+@#endif
+
+welfare =  ((c_t-GAMMA_H*h)^(1-SIGMA)/(1-SIGMA))/(1-beta);
+@#if habits == 0
+    lambda = c_t^(-SIGMA);
+    lambda_h  = 0;
+@#elseif habits == 1
+    [lambda,lambda_h] = get_ss_lambda_hybrid(c_t, h, GAMMA_H, SIGMA, M, beta, g_a);
+@#endif
+end;
+
+
+@#if exercise == 0
+
+    %----------------------------------------------------------------
+    % 5. Computation
+    %----------------------------------------------------------------
+    steady;
+    resid;
+    check;
+
+@#elseif exercise == 1
+
+    steady;
+    resid;
+    check;
+
+    shocks;
+    var eta_a;
+    stderr 0.01;
+    end;
+
+    stoch_simul(noprint,nograph);
+
+@#elseif exercise == 2
+
+// Computation in Matlab script
+
+@#elseif exercise == 3
+    steady;
+    resid;
+    check;
+
+    shocks;
+    var eta_d;
+    @#if anticipated == 0
+        periods 1;
+    @#elseif anticipated == 1
+        periods 2;
+    @#endif
+    values 0.017;
+    end;
+
+perfect_foresight_setup(periods=300);
+@#if anticipated == 1
+    perfect_foresight_solver(stack_solve_algo=0, solve_algo=9, tolx=1e-6, tolf=1e-4, steady_solve_algo=4, maxit=200);
+@#else
+    perfect_foresight_solver(endogenous_terminal_period);
+@#endif
+
+@#elseif exercise == 4
+
+    steady;
+    resid;
+    check;
+
+    shocks;
+    var eta_d;
+    stderr 0.01;
+    end;
+
+    stoch_simul(noprint,nograph);
+
+@#endif

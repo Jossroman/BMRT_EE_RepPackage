@@ -1,0 +1,24 @@
+Starting Dynare (version 6.4).
+Calling Dynare with arguments: noclearall -Dexercise=2 -Dhabits=0 -Dclimate_model=1
+Starting preprocessing of the model file ... 
+WARNING: the location C:\Users\benmi\AppData\Roaming\dynare.ini for the configuration file is obsolete; please see the reference manual for the new location. 
+Substitution of endo leads >= 2: added 28 auxiliary variables and equations. 
+Substitution of endo lags >= 2: added 4 auxiliary variables and equations. 
+Found 79 equation(s). 
+Evaluating expressions... 
+Computing static model derivatives (order 1). 
+Normalizing the static model... 
+Normalization failed with cutoff, trying symbolic normalization... 
+Finding the optimal block decomposition of the static model... 
+10 block(s) found: 
+  9 recursive block(s) and 1 simultaneous block(s). 
+  the largest simultaneous block has 65 equation(s) 
+                                 and 65 feedback variable(s). 
+Computing dynamic model derivatives (order 2). 
+Normalizing the dynamic model... 
+Normalization failed with cutoff, trying symbolic normalization... 
+Could not normalize the dynamic model. Variable d_K is not in the maximum cardinality matching. 
+Preprocessing completed. 
+Preprocessing time: 0h00m01s.
+Total computing time : 0h00m00s
+Note: 1 warning(s) encountered in the preprocessor
